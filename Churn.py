@@ -9,7 +9,7 @@ st.set_page_config(page_title="Customer Churn Dashboard", layout="wide")
 st.title("📊 Customer Churn Analysis Dashboard")
 
 # Load data
-file_path = "your_churn_data.csv"  # Replace with your actual file path
+file_path = "Telecom Final Churn Sheet.csv"  # Replace with your actual file path
 df = pd.read_csv(file_path)
 
 # Sidebar filters
