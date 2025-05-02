@@ -4,6 +4,36 @@ import plotly.express as px
 import seaborn as sns
 import matplotlib.pyplot as plt
 
+# --- User authentication ---
+def login():
+    st.title("🔐 Login Page")
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
+    if st.button("Login"):
+        if username == "admin" and password == "password":
+            st.session_state.logged_in = True
+            st.success("Login successful! Redirecting...")
+        else:
+            st.error("Invalid credentials. Try again.")
+
+# --- Logout button ---
+def logout():
+    st.sidebar.markdown("---")
+    if st.sidebar.button("Logout"):
+        st.session_state.logged_in = False
+        st.experimental_rerun()
+
+# --- Initialize session state ---
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+
+# --- Show login or dashboard ---
+if not st.session_state.logged_in:
+    login()
+    st.stop()
+else:
+    logout()
+
 # Page settings
 st.set_page_config(page_title="Customer Churn Dashboard", layout="wide")
 st.title("📊 Customer Churn Analysis Dashboard")
