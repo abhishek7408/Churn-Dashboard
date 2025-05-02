@@ -4,42 +4,36 @@ import plotly.express as px
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-# ✅ This must be the FIRST Streamlit command!
+# ✅ Must be the first Streamlit command
 st.set_page_config(page_title="Customer Churn Dashboard", layout="wide")
 
-# --- User authentication ---
+# ---------------- LOGIN LOGIC ---------------- #
 def login():
-    st.title("🔐 Login Page")
+    st.title("🔐 Login")
     username = st.text_input("Username")
     password = st.text_input("Password", type="password")
     if st.button("Login"):
-        if username == "admin" and password == "password":
+        if username == "admin" and password == "admin":
             st.session_state.logged_in = True
             st.success("Login successful! Redirecting...")
-            st.experimental_rerun()
+            st.rerun()
         else:
-            st.error("Invalid credentials. Try again.")
+            st.error("Invalid credentials. Please try again.")
 
-# --- Logout button ---
-def logout():
-    st.sidebar.markdown("---")
-    if st.sidebar.button("Logout"):
-        st.session_state.logged_in = False
-        st.experimental_rerun()
-
-# --- Initialize session state ---
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
-# --- Show login or dashboard ---
 if not st.session_state.logged_in:
     login()
     st.stop()
-else:
-    logout()
 
-# --- Dashboard Code Starts ---
+# ---------------- MAIN DASHBOARD ---------------- #
 st.title("📊 Customer Churn Analysis Dashboard")
+
+# Add a logout button
+if st.button("Logout"):
+    st.session_state.logged_in = False
+    st.rerun()
 
 # Load data
 file_path = "Telecom Final Churn Sheet.csv"  # Replace with your actual file path
@@ -82,7 +76,9 @@ with col4:
     avg_cltv = filtered_df['CLTV'].mean()
     st.metric("Avg Customer Lifetime Value", f"${avg_cltv:.0f}")
 
+# Add Total Customers KPI
 st.markdown("### 🧍 Total Customers: **{}**".format(len(filtered_df)))
+
 st.markdown("---")
 
 # Pie Chart - Churn Distribution
