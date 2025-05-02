@@ -4,6 +4,9 @@ import plotly.express as px
 import seaborn as sns
 import matplotlib.pyplot as plt
 
+# ✅ This must be the FIRST Streamlit command!
+st.set_page_config(page_title="Customer Churn Dashboard", layout="wide")
+
 # --- User authentication ---
 def login():
     st.title("🔐 Login Page")
@@ -13,6 +16,7 @@ def login():
         if username == "admin" and password == "password":
             st.session_state.logged_in = True
             st.success("Login successful! Redirecting...")
+            st.experimental_rerun()
         else:
             st.error("Invalid credentials. Try again.")
 
@@ -34,8 +38,7 @@ if not st.session_state.logged_in:
 else:
     logout()
 
-# Page settings
-st.set_page_config(page_title="Customer Churn Dashboard", layout="wide")
+# --- Dashboard Code Starts ---
 st.title("📊 Customer Churn Analysis Dashboard")
 
 # Load data
@@ -79,9 +82,7 @@ with col4:
     avg_cltv = filtered_df['CLTV'].mean()
     st.metric("Avg Customer Lifetime Value", f"${avg_cltv:.0f}")
 
-# Add Total Customers KPI
 st.markdown("### 🧍 Total Customers: **{}**".format(len(filtered_df)))
-
 st.markdown("---")
 
 # Pie Chart - Churn Distribution
