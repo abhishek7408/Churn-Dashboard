@@ -9,34 +9,34 @@ st.set_page_config(page_title="Customer Churn Dashboard", layout="wide")
 
 # ---------------- LOGIN LOGIC ---------------- #
 def login():
-st.title("🔐 Login")
-username = st.text_input("Username")
-password = st.text_input("Password", type="password")
-if st.button("Login"):
-if username == "admin" and password == "admin":
-st.session_state.logged_in = True
-st.success("Login successful! Redirecting...")
-st.rerun()
-else:
-st.error("Invalid credentials. Please try again.")
+    st.title("🔐 Login")
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
+    if st.button("Login"):
+        if username == "admin" and password == "admin":
+            st.session_state.logged_in = True
+            st.success("Login successful! Redirecting...")
+            st.rerun()
+        else:
+            st.error("Invalid credentials. Please try again.")
 
 if "logged_in" not in st.session_state:
-st.session_state.logged_in = False
+    st.session_state.logged_in = False
 
 if not st.session_state.logged_in:
-login()
-st.stop()
+    login()
+    st.stop()
 
 # ---------------- MAIN DASHBOARD ---------------- #
 st.title("📊 Customer Churn Analysis Dashboard")
 
 # Add a logout button
 if st.button("Logout"):
-st.session_state.logged_in = False
-st.rerun()
+    st.session_state.logged_in = False
+    st.rerun()
 
 # Load data
-file_path = "Telecom Final Churn Sheet.csv" # Replace with your actual file path
+file_path = "Telecom Final Churn Sheet.csv"  # Replace with your actual file path
 df = pd.read_csv(file_path)
 
 # Sidebar filters
@@ -51,9 +51,9 @@ selected_churn_label = st.sidebar.multiselect("Select Churn Label(s):", churn_la
 
 # Apply filters
 filtered_df = df[
-(df['Gender'].isin(selected_gender)) &
-(df['Contract'].isin(selected_contract)) &
-(df['Churn_Label'].isin(selected_churn_label))
+    (df['Gender'].isin(selected_gender)) &
+    (df['Contract'].isin(selected_contract)) &
+    (df['Churn_Label'].isin(selected_churn_label))
 ]
 
 # KPIs
@@ -61,34 +61,33 @@ st.header("📌 Key Metrics")
 col1, col2, col3, col4 = st.columns(4)
 
 with col1:
-avg_tenure = filtered_df['Tenure_Months'].mean()
-st.metric("Average Tenure (Months)", f"{avg_tenure:.1f}")
+    avg_tenure = filtered_df['Tenure_Months'].mean()
+    st.metric("Average Tenure (Months)", f"{avg_tenure:.1f}")
 
 with col2:
-avg_monthly_charges = filtered_df['Monthly_Charges'].mean()
-st.metric("Avg Monthly Charges ($)", f"${avg_monthly_charges:.2f}")
+    avg_monthly_charges = filtered_df['Monthly_Charges'].mean()
+    st.metric("Avg Monthly Charges ($)", f"${avg_monthly_charges:.2f}")
 
 with col3:
-churn_rate = (filtered_df['Churn_Value'].sum() / filtered_df.shape[0]) * 100 if filtered_df.shape[0] > 0 else 0
-st.metric("Churn Rate (%)", f"{churn_rate:.2f}%")
+    churn_rate = (filtered_df['Churn_Value'].sum() / filtered_df.shape[0]) * 100 if filtered_df.shape[0] > 0 else 0
+    st.metric("Churn Rate (%)", f"{churn_rate:.2f}%")
 
 with col4:
-avg_cltv = filtered_df['CLTV'].mean()
-st.metric("Avg Customer Lifetime Value", f"${avg_cltv:.0f}")
+    avg_cltv = filtered_df['CLTV'].mean()
+    st.metric("Avg Customer Lifetime Value", f"${avg_cltv:.0f}")
 
 # Add Total Customers KPI
 st.markdown("### 🧍 Total Customers: **{}**".format(len(filtered_df)))
-
 st.markdown("---")
 
 # Pie Chart - Churn Distribution
 st.subheader("🔵 Churn Distribution")
 fig_pie = px.pie(
-filtered_df,
-names="Churn_Value",
-title="Churn vs Non-Churn Customers",
-color_discrete_sequence=px.colors.qualitative.Set2,
-hole=0.4
+    filtered_df,
+    names="Churn_Value",
+    title="Churn vs Non-Churn Customers",
+    color_discrete_sequence=px.colors.qualitative.Set2,
+    hole=0.4
 )
 fig_pie.update_traces(textinfo='percent+label')
 st.plotly_chart(fig_pie, use_container_width=True)
@@ -96,12 +95,12 @@ st.plotly_chart(fig_pie, use_container_width=True)
 # Bar Chart - Contract vs Churn
 st.subheader("📑 Contract Type and Churn")
 fig_contract = px.histogram(
-filtered_df,
-x="Contract",
-color="Churn_Value",
-barmode="group",
-labels={"Churn_Value": "Churn (1=Yes, 0=No)"},
-title="Contract Types vs Churn"
+    filtered_df,
+    x="Contract",
+    color="Churn_Value",
+    barmode="group",
+    labels={"Churn_Value": "Churn (1=Yes, 0=No)"},
+    title="Contract Types vs Churn"
 )
 st.plotly_chart(fig_contract, use_container_width=True)
 
@@ -110,13 +109,13 @@ st.markdown("---")
 # Line Chart - Tenure vs Monthly Charges
 st.subheader("📈 Tenure vs Monthly Charges")
 fig_line = px.scatter(
-filtered_df,
-x="Tenure_Months",
-y="Monthly_Charges",
-color="Churn_Value",
-labels={"Churn_Value": "Churn (1=Yes, 0=No)"},
-title="Tenure vs Monthly Charges",
-trendline="ols"
+    filtered_df,
+    x="Tenure_Months",
+    y="Monthly_Charges",
+    color="Churn_Value",
+    labels={"Churn_Value": "Churn (1=Yes, 0=No)"},
+    title="Tenure vs Monthly Charges",
+    trendline="ols"
 )
 st.plotly_chart(fig_line, use_container_width=True)
 
