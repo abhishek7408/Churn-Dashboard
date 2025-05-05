@@ -1,6 +1,8 @@
 import streamlit as st
 import pandas as pd
 import joblib
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 # ✅ Must be the first Streamlit command
 st.set_page_config(page_title="Churn Prediction App", layout="wide")
@@ -48,8 +50,8 @@ multiclass_features = ['Multiple_Lines', 'Internet_Service', 'Online_Security', 
                        'Device_Protection', 'Tech_Support', 'Streaming_TV', 'Streaming_Movies',
                        'Contract', 'Payment_Method']
 
-# Sidebar option
-option = st.sidebar.selectbox("Select Prediction Type:", ("Single Input", "Bulk Upload"))
+# ---------------- SIDEBAR OPTION ---------------- #
+option = st.sidebar.selectbox("Choose Section:", ("Single Input", "Bulk Upload", "Visual Analytics"))
 
 # ---------------- SINGLE INPUT ---------------- #
 if option == "Single Input":
@@ -93,3 +95,79 @@ elif option == "Bulk Upload":
             file_name='churn_predictions.csv',
             mime='text/csv',
         )
+
+# ---------------- VISUAL ANALYTICS ---------------- #
+elif option == "Visual Analytics":
+    st.header("📊 Customer Churn - Visual Analytics")
+    file = st.file_uploader("Upload CSV for Visual Analytics", type=["csv"], key="viz_csv")
+
+    if file is not None:
+        df = pd.read_csv(file)
+
+        # Clean numeric columns
+        df['Total_Charges'] = pd.to_numeric(df['Total_Charges'], errors='coerce')
+        df['CLTV'] = pd.to_numeric(df['CLTV'], errors='coerce')
+        df['Churn_Score'] = pd.to_numeric(df['Churn_Score'], errors='coerce')
+        df.dropna(subset=['Total_Charges', 'CLTV', 'Churn_Score'], inplace=True)
+
+        # --- Churn Risk Group ---
+        bins = [0, 25, 50, 75, 100]
+        labels = ['Low Risk (0-25)', 'Medium Risk (26-50)', 'High Risk (51-75)', 'Critical (76-100)']
+        df['Churn Risk Group'] = pd.cut(df['Churn_Score'], bins=bins, labels=labels, include_lowest=True)
+        risk_group_counts = df['Churn Risk Group'].value_counts().sort_index()
+
+        st.subheader("Churn Score Bins")
+        fig, ax = plt.subplots(figsize=(8, 5))
+        risk_group_counts.plot(kind='bar', color='skyblue', ax=ax)
+        for i, value in enumerate(risk_group_counts):
+            ax.text(i, value + 2, str(value), ha='center', fontweight='bold')
+        ax.set_title('Customer Distribution by Churn Score Bins')
+        ax.set_xlabel('Churn Risk Group')
+        ax.set_ylabel('Number of Customers')
+        ax.grid(True, axis='y', linestyle='--', alpha=0.7)
+        st.pyplot(fig)
+
+        # --- CLTV Group ---
+        df['CLTV Group'] = pd.cut(df['CLTV'], bins=[0, 2000, 5000, df['CLTV'].max()],
+                                  labels=['Low', 'Medium', 'High'], include_lowest=True)
+
+        # --- Risk Matrix ---
+        st.subheader("Churn Risk vs CLTV Group – Heatmap")
+        risk_matrix = pd.crosstab(df['Churn Risk Group'], df['CLTV Group'])
+        fig2, ax2 = plt.subplots(figsize=(8, 6))
+        sns.heatmap(risk_matrix, annot=True, fmt="d", cmap="YlOrRd", ax=ax2)
+        ax2.set_title("Risk Matrix: Churn Risk vs CLTV Group")
+        st.pyplot(fig2)
+
+        # --- Total Charges Summary ---
+        st.subheader("Total Charges Summary by Churn Label")
+        summary_table = df.groupby('Churn_Label')['Total_Charges'].describe()[['count', 'min', '25%', '50%', '75%', 'max']].round(2)
+        summary_table.rename(columns={'25%': 'Q1', '50%': 'Median', '75%': 'Q3'}, inplace=True)
+        st.dataframe(summary_table)
+
+        # --- Strip Plot of Total Charges ---
+        st.subheader("Total Charges by Churn Label – Distribution")
+        fig3, ax3 = plt.subplots(figsize=(8, 6))
+        sns.stripplot(x='Churn_Label', y='Total_Charges', data=df, jitter=0.3, palette='Set2', alpha=0.7, ax=ax3)
+        ax3.set_title('Total Charges Distribution by Churn Status')
+        st.pyplot(fig3)
+
+        # --- CLTV vs Churn Score Scatter with Risk Zone ---
+        st.subheader("CLTV vs Churn Score – Risk Segmentation")
+        cltv_threshold = df['CLTV'].quantile(0.75)
+        churn_score_threshold = 75
+        df['Risk_Segment'] = df.apply(lambda row: 
+            'Danger' if row['CLTV'] >= cltv_threshold and row['Churn_Score'] >= churn_score_threshold else 'Safe',
+            axis=1
+        )
+        segment_summary = df['Risk_Segment'].value_counts()
+        st.write("Risk Segment Summary:")
+        st.dataframe(segment_summary)
+
+        fig4, ax4 = plt.subplots(figsize=(8, 6))
+        sns.scatterplot(data=df, x='CLTV', y='Churn_Score', hue='Churn_Label', palette='coolwarm', alpha=0.7, ax=ax4)
+        ax4.axhline(churn_score_threshold, color='red', linestyle='--', linewidth=1, label='Churn Score = 75')
+        ax4.axvline(cltv_threshold, color='orange', linestyle='--', linewidth=1, label='High CLTV (75th percentile)')
+        ax4.set_title('CLTV vs Churn Score – High CLTV & High Churn Risk = Danger')
+        ax4.legend()
+        st.pyplot(fig4)
