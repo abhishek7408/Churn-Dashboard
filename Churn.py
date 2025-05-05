@@ -1,173 +1,131 @@
 import streamlit as st
 import pandas as pd
-import joblib
-import matplotlib.pyplot as plt
+import plotly.express as px
 import seaborn as sns
+import matplotlib.pyplot as plt
 
 # ✅ Must be the first Streamlit command
-st.set_page_config(page_title="Churn Prediction App", layout="wide")
+st.set_page_config(page_title="Customer Churn Dashboard", layout="wide")
 
 # ---------------- LOGIN LOGIC ---------------- #
 def login():
-    st.title("🔐 Login to Prediction App")
-    username = st.text_input("Username")
-    password = st.text_input("Password", type="password")
-    if st.button("Login"):
-        if username == "admin" and password == "admin":
-            st.session_state.logged_in = True
-            st.success("Login successful! Redirecting...")
-            st.rerun()
-        else:
-            st.error("Invalid credentials. Please try again.")
+st.title("🔐 Login")
+username = st.text_input("Username")
+password = st.text_input("Password", type="password")
+if st.button("Login"):
+if username == "admin" and password == "admin":
+st.session_state.logged_in = True
+st.success("Login successful! Redirecting...")
+st.rerun()
+else:
+st.error("Invalid credentials. Please try again.")
 
 if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
+st.session_state.logged_in = False
 
 if not st.session_state.logged_in:
-    login()
-    st.stop()
+login()
+st.stop()
 
-# ---------------- LOGOUT BUTTON ---------------- #
-st.title("📈 Customer Churn Prediction App")
+# ---------------- MAIN DASHBOARD ---------------- #
+st.title("📊 Customer Churn Analysis Dashboard")
+
+# Add a logout button
 if st.button("Logout"):
-    st.session_state.logged_in = False
-    st.rerun()
+st.session_state.logged_in = False
+st.rerun()
 
-# ---------------- Load Model ---------------- #
-model = joblib.load('dt_model.pkl')
+# Load data
+file_path = "Telecom Final Churn Sheet.csv" # Replace with your actual file path
+df = pd.read_csv(file_path)
 
-# Final feature list
-features = ['Count', 'Latitude', 'Longitude', 'Gender', 'Senior_Citizen', 'Partner', 'Dependents', 'Tenure_Months',
-            'Phone_Service', 'Multiple_Lines', 'Internet_Service', 'Online_Security', 'Online_Backup',
-            'Device_Protection', 'Tech_Support', 'Streaming_TV', 'Streaming_Movies', 'Contract',
-            'Paperless_Billing', 'Payment_Method', 'Monthly_Charges', 'Total_Charges', 'Churn_Value',
-            'Churn_Score', 'CLTV']
+# Sidebar filters
+st.sidebar.header("🔎 Filter the Data")
+gender_options = df['Gender'].dropna().unique()
+contract_options = df['Contract'].dropna().unique()
+churn_label_options = df['Churn_Label'].dropna().unique().tolist()
 
-# Define feature types
-continuous_features = ['Latitude', 'Longitude', 'Monthly_Charges', 'Total_Charges', 'CLTV', 'Churn_Score', 'Tenure_Months', 'Count']
-binary_features = ['Gender', 'Senior_Citizen', 'Partner', 'Dependents', 'Phone_Service', 'Paperless_Billing']
-multiclass_features = ['Multiple_Lines', 'Internet_Service', 'Online_Security', 'Online_Backup',
-                       'Device_Protection', 'Tech_Support', 'Streaming_TV', 'Streaming_Movies',
-                       'Contract', 'Payment_Method']
+selected_gender = st.sidebar.multiselect("Select Gender(s):", gender_options, default=gender_options)
+selected_contract = st.sidebar.multiselect("Select Contract Type(s):", contract_options, default=contract_options)
+selected_churn_label = st.sidebar.multiselect("Select Churn Label(s):", churn_label_options, default=churn_label_options)
 
-# ---------------- SIDEBAR OPTION ---------------- #
-option = st.sidebar.selectbox("Choose Section:", ("Single Input", "Bulk Upload", "Visual Analytics"))
+# Apply filters
+filtered_df = df[
+(df['Gender'].isin(selected_gender)) &
+(df['Contract'].isin(selected_contract)) &
+(df['Churn_Label'].isin(selected_churn_label))
+]
 
-# ---------------- SINGLE INPUT ---------------- #
-if option == "Single Input":
-    st.header("🧍‍♂️ Enter Customer Details:")
-    input_data = {}
+# KPIs
+st.header("📌 Key Metrics")
+col1, col2, col3, col4 = st.columns(4)
 
-    for feature in features:
-        if feature in continuous_features:
-            input_data[feature] = st.number_input(f"{feature}:", value=0.0)
-        elif feature in binary_features:
-            input_data[feature] = st.selectbox(f"{feature}:", [0, 1])
-        elif feature in multiclass_features:
-            input_data[feature] = st.selectbox(f"{feature}:", [0, 1, 2])  # Assuming 3 classes
-        elif feature == 'Churn_Value':
-            input_data[feature] = st.selectbox(f"{feature}:", [0, 1])  # Included as feature
+with col1:
+avg_tenure = filtered_df['Tenure_Months'].mean()
+st.metric("Average Tenure (Months)", f"{avg_tenure:.1f}")
 
-    input_df = pd.DataFrame([input_data])
+with col2:
+avg_monthly_charges = filtered_df['Monthly_Charges'].mean()
+st.metric("Avg Monthly Charges ($)", f"${avg_monthly_charges:.2f}")
 
-    if st.button('Predict'):
-        prediction = model.predict(input_df)[0]
-        st.success(f"Prediction: {'Churn' if prediction == 1 else 'No Churn'}")
+with col3:
+churn_rate = (filtered_df['Churn_Value'].sum() / filtered_df.shape[0]) * 100 if filtered_df.shape[0] > 0 else 0
+st.metric("Churn Rate (%)", f"{churn_rate:.2f}%")
 
-# ---------------- BULK UPLOAD ---------------- #
-elif option == "Bulk Upload":
-    st.header("📤 Upload CSV File:")
-    file = st.file_uploader("Upload your input CSV file", type=["csv"])
+with col4:
+avg_cltv = filtered_df['CLTV'].mean()
+st.metric("Avg Customer Lifetime Value", f"${avg_cltv:.0f}")
 
-    if file is not None:
-        data = pd.read_csv(file)
-        data = data[features]  # Ensure proper column order
+# Add Total Customers KPI
+st.markdown("### 🧍 Total Customers: **{}**".format(len(filtered_df)))
 
-        predictions = model.predict(data)
-        data['Prediction'] = ['Churn' if pred == 1 else 'No Churn' for pred in predictions]
-        st.write(data)
+st.markdown("---")
 
-        # Downloadable CSV
-        csv = data.to_csv(index=False).encode('utf-8')
-        st.download_button(
-            label="Download predictions as CSV",
-            data=csv,
-            file_name='churn_predictions.csv',
-            mime='text/csv',
-        )
+# Pie Chart - Churn Distribution
+st.subheader("🔵 Churn Distribution")
+fig_pie = px.pie(
+filtered_df,
+names="Churn_Value",
+title="Churn vs Non-Churn Customers",
+color_discrete_sequence=px.colors.qualitative.Set2,
+hole=0.4
+)
+fig_pie.update_traces(textinfo='percent+label')
+st.plotly_chart(fig_pie, use_container_width=True)
 
-# ---------------- VISUAL ANALYTICS ---------------- #
-elif option == "Visual Analytics":
-    st.header("📊 Customer Churn - Visual Analytics")
-    file = st.file_uploader("Upload CSV for Visual Analytics", type=["csv"], key="viz_csv")
+# Bar Chart - Contract vs Churn
+st.subheader("📑 Contract Type and Churn")
+fig_contract = px.histogram(
+filtered_df,
+x="Contract",
+color="Churn_Value",
+barmode="group",
+labels={"Churn_Value": "Churn (1=Yes, 0=No)"},
+title="Contract Types vs Churn"
+)
+st.plotly_chart(fig_contract, use_container_width=True)
 
-    if file is not None:
-        df = pd.read_csv(file)
+st.markdown("---")
 
-        # Clean numeric columns
-        df['Total_Charges'] = pd.to_numeric(df['Total_Charges'], errors='coerce')
-        df['CLTV'] = pd.to_numeric(df['CLTV'], errors='coerce')
-        df['Churn_Score'] = pd.to_numeric(df['Churn_Score'], errors='coerce')
-        df.dropna(subset=['Total_Charges', 'CLTV', 'Churn_Score'], inplace=True)
+# Line Chart - Tenure vs Monthly Charges
+st.subheader("📈 Tenure vs Monthly Charges")
+fig_line = px.scatter(
+filtered_df,
+x="Tenure_Months",
+y="Monthly_Charges",
+color="Churn_Value",
+labels={"Churn_Value": "Churn (1=Yes, 0=No)"},
+title="Tenure vs Monthly Charges",
+trendline="ols"
+)
+st.plotly_chart(fig_line, use_container_width=True)
 
-        # --- Churn Risk Group ---
-        bins = [0, 25, 50, 75, 100]
-        labels = ['Low Risk (0-25)', 'Medium Risk (26-50)', 'High Risk (51-75)', 'Critical (76-100)']
-        df['Churn Risk Group'] = pd.cut(df['Churn_Score'], bins=bins, labels=labels, include_lowest=True)
-        risk_group_counts = df['Churn Risk Group'].value_counts().sort_index()
+st.markdown("---")
 
-        st.subheader("Churn Score Bins")
-        fig, ax = plt.subplots(figsize=(8, 5))
-        risk_group_counts.plot(kind='bar', color='skyblue', ax=ax)
-        for i, value in enumerate(risk_group_counts):
-            ax.text(i, value + 2, str(value), ha='center', fontweight='bold')
-        ax.set_title('Customer Distribution by Churn Score Bins')
-        ax.set_xlabel('Churn Risk Group')
-        ax.set_ylabel('Number of Customers')
-        ax.grid(True, axis='y', linestyle='--', alpha=0.7)
-        st.pyplot(fig)
-
-        # --- CLTV Group ---
-        df['CLTV Group'] = pd.cut(df['CLTV'], bins=[0, 2000, 5000, df['CLTV'].max()],
-                                  labels=['Low', 'Medium', 'High'], include_lowest=True)
-
-        # --- Risk Matrix ---
-        st.subheader("Churn Risk vs CLTV Group – Heatmap")
-        risk_matrix = pd.crosstab(df['Churn Risk Group'], df['CLTV Group'])
-        fig2, ax2 = plt.subplots(figsize=(8, 6))
-        sns.heatmap(risk_matrix, annot=True, fmt="d", cmap="YlOrRd", ax=ax2)
-        ax2.set_title("Risk Matrix: Churn Risk vs CLTV Group")
-        st.pyplot(fig2)
-
-        # --- Total Charges Summary ---
-        st.subheader("Total Charges Summary by Churn Label")
-        summary_table = df.groupby('Churn_Label')['Total_Charges'].describe()[['count', 'min', '25%', '50%', '75%', 'max']].round(2)
-        summary_table.rename(columns={'25%': 'Q1', '50%': 'Median', '75%': 'Q3'}, inplace=True)
-        st.dataframe(summary_table)
-
-        # --- Strip Plot of Total Charges ---
-        st.subheader("Total Charges by Churn Label – Distribution")
-        fig3, ax3 = plt.subplots(figsize=(8, 6))
-        sns.stripplot(x='Churn_Label', y='Total_Charges', data=df, jitter=0.3, palette='Set2', alpha=0.7, ax=ax3)
-        ax3.set_title('Total Charges Distribution by Churn Status')
-        st.pyplot(fig3)
-
-        # --- CLTV vs Churn Score Scatter with Risk Zone ---
-        st.subheader("CLTV vs Churn Score – Risk Segmentation")
-        cltv_threshold = df['CLTV'].quantile(0.75)
-        churn_score_threshold = 75
-        df['Risk_Segment'] = df.apply(lambda row: 
-            'Danger' if row['CLTV'] >= cltv_threshold and row['Churn_Score'] >= churn_score_threshold else 'Safe',
-            axis=1
-        )
-        segment_summary = df['Risk_Segment'].value_counts()
-        st.write("Risk Segment Summary:")
-        st.dataframe(segment_summary)
-
-        fig4, ax4 = plt.subplots(figsize=(8, 6))
-        sns.scatterplot(data=df, x='CLTV', y='Churn_Score', hue='Churn_Label', palette='coolwarm', alpha=0.7, ax=ax4)
-        ax4.axhline(churn_score_threshold, color='red', linestyle='--', linewidth=1, label='Churn Score = 75')
-        ax4.axvline(cltv_threshold, color='orange', linestyle='--', linewidth=1, label='High CLTV (75th percentile)')
-        ax4.set_title('CLTV vs Churn Score – High CLTV & High Churn Risk = Danger')
-        ax4.legend()
-        st.pyplot(fig4)
+# Correlation Heatmap
+st.subheader("📊 Correlation Heatmap")
+numeric_features = filtered_df.select_dtypes(include=['float64', 'int64'])
+corr = numeric_features.corr()
+fig_corr, ax = plt.subplots(figsize=(12, 8))
+sns.heatmap(corr, annot=True, fmt=".2f", cmap="coolwarm", ax=ax)
+st.pyplot(fig_corr)
